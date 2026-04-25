@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ivory: #f4efe6;
+  --graphite: #2b2b2b;
+  --sage: #9dae94;
+  --brass: #a8794a;
+  --rule: #d9cfbe;
+  --paper-noise: url("/paper-texture.svg");
+}
+
+html,
+body {
+  background-color: var(--ivory);
+  color: var(--graphite);
+  font-family: var(--font-sans), Inter, ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0.005em;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--paper-noise);
+  opacity: 0.04;
+  z-index: 0;
+}
+
+main {
+  position: relative;
+  z-index: 1;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-serif), "EB Garamond", Georgia, serif;
+  font-weight: 500;
+  color: var(--graphite);
+}
+
+.eyebrow {
+  font-family: var(--font-sans), Inter, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.7rem;
+  color: var(--brass);
+  font-weight: 500;
+}
+
+.specimen-label {
+  border-bottom: 1px solid var(--brass);
+  padding-bottom: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.fine-rule {
+  border-bottom: 1px solid var(--rule);
+}
+
+.brass-rule {
+  border-bottom: 1px solid var(--brass);
+}
+
+.mono {
+  font-family: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
+}
+
+.margin-note {
+  font-family: var(--font-serif), serif;
+  font-style: italic;
+  color: var(--brass);
+  font-size: 0.85rem;
+  border-left: 1px solid var(--brass);
+  padding-left: 0.6rem;
+}
+
+button {
+  font-family: var(--font-sans), Inter, sans-serif;
+}
+
+button.primary {
+  background: var(--graphite);
+  color: var(--ivory);
+  padding: 0.5rem 1rem;
+  border-radius: 2px;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+button.primary:hover {
+  background: var(--brass);
+}
+
+button.ghost {
+  background: transparent;
+  color: var(--graphite);
+  border: 1px solid var(--rule);
+  padding: 0.4rem 0.8rem;
+  border-radius: 2px;
+  font-size: 0.8rem;
+}
+
+button.ghost:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+textarea,
+input[type="text"] {
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 0.6rem 0.75rem;
+  font-family: var(--font-serif), "EB Garamond", Georgia, serif;
+  font-size: 1.05rem;
+  color: var(--graphite);
+  width: 100%;
+}
+
+textarea:focus,
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--brass);
+}
+
+::selection {
+  background: var(--brass);
+  color: var(--ivory);
+}

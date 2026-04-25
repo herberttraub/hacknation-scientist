@@ -1,0 +1,259 @@
+"""FastAPI entry point. Run with:
+    .venv/Scripts/python.exe -m uvicorn api.main:app --port 8765 --reload
+"""
+from __future__ import annotations
+
+from fastapi import FastAPI, File, Form, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+import json
+import uuid
+
+import psycopg
+
+from . import llm
+from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse, Response
+
+from .agents import exporter as exporter_agent
+from .agents import planner as planner_agent
+from .agents import qc as qc_agent
+from .agents import refiner as refiner_agent
+from .rag.pdf_extract import extract_pdf_text
+from .schemas.plan import PlanRequest
+from .schemas.qc import QCRequest, QCResult
+from .settings import settings
+
+
+def _conn():
+    return psycopg.connect(settings.DATABASE_URL.replace("+psycopg", ""))
+
+app = FastAPI(title="AI Scientist", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Make sure CORS headers go out on every error, otherwise the browser
+    reports a misleading "CORS error" instead of the real one."""
+    origin = request.headers.get("origin", "")
+    headers = {
+        "Access-Control-Allow-Origin": origin if origin in {
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:3001",
+        } else "*",
+        "Access-Control-Allow-Credentials": "true",
+    }
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)[:600], "type": exc.__class__.__name__},
+        headers=headers,
+    )
+
+
+# ─── Health ────────────────────────────────────────────────────────────────
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {
+        "status": "ok",
+        "provider": settings.LLM_PROVIDER,
+        "demo_mode": str(settings.DEMO_MODE).lower(),
+    }
+
+
+class EchoIn(BaseModel):
+    text: str
+
+
+@app.post("/echo")
+def echo(body: EchoIn) -> dict[str, str]:
+    out = llm.generate_text(
+        f"Say exactly this sentence back to me, with no extra words: {body.text}",
+        system="You are a literal echo. Return the user's sentence verbatim.",
+    )
+    return {"input": body.text, "output": out}
+
+
+# ─── QC ────────────────────────────────────────────────────────────────────
+@app.post("/qc", response_model=QCResult)
+def qc(body: QCRequest) -> QCResult:
+    """Default QC: search indexed corpus. May return needs_user_choice=true
+    when the corpus has nothing relevant."""
+    return qc_agent.run_qc(body.question)
+
+
+@app.post("/qc/with-source", response_model=QCResult)
+async def qc_with_source(
+    question: str = Form(...),
+    source_url: str | None = Form(default=None),
+    file: UploadFile | None = File(default=None),
+) -> QCResult:
+    """User-supplied source — URL or uploaded PDF. Retrieves against that
+    source plus our corpus, then runs verdict."""
+    source_text: str | None = None
+    if file is not None:
+        raw = await file.read()
+        if file.filename and file.filename.lower().endswith(".pdf"):
+            source_text = extract_pdf_text(raw)
+        else:
+            source_text = raw.decode("utf-8", errors="ignore")
+    return qc_agent.run_qc_with_source(question, source_url=source_url, source_text=source_text)
+
+
+class QCBroadIn(BaseModel):
+    question: str
+
+
+@app.post("/qc/broad", response_model=QCResult)
+def qc_broad(body: QCBroadIn) -> QCResult:
+    """No retrieval, straight LLM call. Every claim tagged [ungrounded]."""
+    return qc_agent.run_qc_broad(body.question)
+
+
+# ─── Plan ──────────────────────────────────────────────────────────────────
+@app.post("/plan")
+def plan(body: PlanRequest) -> dict:
+    """Generate an ExperimentPlan, persist query + plan rows."""
+    out = planner_agent.generate_plan(
+        body.question,
+        depth=body.depth,
+        team_id=body.team_id,
+        qc_status=body.qc_status,
+        qc_rationale=body.qc_rationale,
+        qc_references=body.qc_references,
+    )
+
+    query_id = str(uuid.uuid4())
+    plan_id = str(uuid.uuid4())
+    try:
+        with _conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                "insert into queries (id, team_id, question, experiment_type, domain) values (%s, %s, %s, %s, %s)",
+                (query_id, body.team_id, body.question, out["experiment_type"], out["domain"]),
+            )
+            cur.execute(
+                "insert into plans (id, query_id, team_id, depth_mode, plan) values (%s, %s, %s, %s, %s::jsonb)",
+                (plan_id, query_id, body.team_id, body.depth, json.dumps(out["plan"])),
+            )
+            conn.commit()
+    except Exception as e:
+        # don't block plan return on persistence
+        out["persistence_error"] = str(e)
+
+    return {
+        "plan_id": plan_id,
+        "query_id": query_id,
+        **out,
+    }
+
+
+# ─── Feedback (self-learning) ──────────────────────────────────────────────
+class FeedbackIn(BaseModel):
+    plan_id: str
+    team_id: str | None = None
+    section: str
+    before: str | None = None
+    after: str | None = None
+    freeform_note: str | None = None
+
+
+@app.post("/feedback")
+def feedback(body: FeedbackIn) -> dict:
+    row = refiner_agent.fetch_plan_row(body.plan_id)
+    if not row:
+        return {"ok": False, "accepted": False, "reason": "plan not found"}
+
+    review = refiner_agent.review_feedback(
+        plan=row["plan"],
+        section=body.section,
+        before=body.before,
+        after=body.after,
+        freeform_note=body.freeform_note,
+    )
+    refiner_agent.store_feedback(
+        plan_id=body.plan_id,
+        team_id=body.team_id or row["team_id"],
+        experiment_type=row.get("experiment_type"),
+        domain=row.get("domain"),
+        section=body.section,
+        before=body.before,
+        after=body.after,
+        freeform_note=body.freeform_note,
+        accepted=review["accepted"],
+        reason=review["reason"],
+    )
+    return {"ok": True, "accepted": review["accepted"], "reason": review["reason"]}
+
+
+class RefineIn(BaseModel):
+    plan_id: str
+    section: str
+    instruction: str  # more_detail | less_detail | freeform
+    freeform_note: str | None = None
+
+
+@app.post("/refine")
+def refine(body: RefineIn) -> dict:
+    row = refiner_agent.fetch_plan_row(body.plan_id)
+    if not row:
+        return {"section": body.section, "updated_text": "", "error": "plan not found"}
+    text = refiner_agent.refine_section(
+        plan=row["plan"],
+        section=body.section,
+        instruction=body.instruction,
+        freeform_note=body.freeform_note,
+    )
+    return {"section": body.section, "updated_text": text}
+
+
+# ─── Export ────────────────────────────────────────────────────────────────
+@app.get("/plan/{plan_id}/export")
+def export_plan(plan_id: str, format: str = "pdf") -> Response:
+    row = refiner_agent.fetch_plan_row(plan_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="plan not found")
+    md = exporter_agent.plan_to_markdown(row["plan"])
+    fmt = format.lower()
+    safe_title = (row["plan"].get("title") or "experiment-plan").replace(" ", "_")[:60]
+
+    if fmt == "md":
+        return Response(
+            content=md,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.md"'},
+        )
+    if fmt == "pdf":
+        pdf = exporter_agent.render_pdf(md)
+        return Response(
+            content=pdf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.pdf"'},
+        )
+    if fmt == "docx":
+        data = exporter_agent.render_docx(md)
+        return Response(
+            content=data,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.docx"'},
+        )
+    if fmt == "tex":
+        tex = exporter_agent.render_latex(md)
+        return Response(
+            content=tex,
+            media_type="application/x-tex",
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.tex"'},
+        )
+    raise HTTPException(status_code=400, detail=f"unknown format: {format}")
