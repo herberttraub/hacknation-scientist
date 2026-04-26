@@ -11,6 +11,7 @@ from typing import Any
 import psycopg
 from pydantic import ValidationError
 
+from .. import cache
 from .. import llm
 from ..rag import retriever
 from ..schemas.plan import ExperimentPlan
@@ -183,13 +184,30 @@ def _team_examples(team_id: str | None, domain: str | None) -> list[dict[str, An
     return out
 
 
+def _feedback_stamp(team_id: str | None) -> dict[str, Any]:
+    if not team_id:
+        return {"count": 0, "latest": ""}
+    try:
+        with psycopg.connect(settings.DATABASE_URL.replace("+psycopg", "")) as conn, conn.cursor() as cur:
+            cur.execute(
+                "select count(*), max(created_at) from feedback where team_id = %s and accepted = true",
+                (team_id,),
+            )
+            count, latest = cur.fetchone()
+            return {"count": int(count or 0), "latest": latest.isoformat() if latest else ""}
+    except Exception:
+        return {"count": 0, "latest": ""}
+
+
 def _classify_experiment_type(question: str) -> str:
     """Tiny call to slug the experiment type for the few-shot store."""
     try:
+        provider = "openai" if settings.OPENAI_KEY else settings.LLM_PROVIDER
         return llm.generate_text(
             f"Classify this experiment into a 3-5 word slug, lowercase, dot-separated. e.g. 'biosensor.electrochemical.crp', 'mouse.gut.permeability', 'cryopreservation.cell.viability', 'microbe.electrosynthesis.co2'. Output ONLY the slug, no explanation.\n\nHYPOTHESIS:\n{question}",
             system="You output exactly one slug. Nothing else.",
-            model=settings.GEMINI_MODEL_FLASH,
+            model=settings.OPENAI_MODEL_FLASH if settings.OPENAI_KEY else settings.GEMINI_MODEL_FLASH,
+            provider=provider,
         ).strip().splitlines()[0][:80]
     except Exception:
         return "general"
@@ -230,6 +248,31 @@ def generate_plan(
                 "team_examples_applied": 0,
                 "demo_cached": True,
             }
+
+    plan_cache_key = cache.key(
+        "plan_v2",
+        {
+            "question": question.strip().lower(),
+            "depth": depth,
+            "team_id": team_id or "",
+            "qc_status": qc_status,
+            "qc_rationale": qc_rationale,
+            "qc_references": [
+                {
+                    "title": r.get("title", ""),
+                    "source_id": r.get("source_id", ""),
+                    "year": r.get("year"),
+                }
+                for r in (qc_references or [])
+            ],
+            "feedback": _feedback_stamp(team_id),
+            "llm_provider": "openai" if settings.OPENAI_KEY else settings.LLM_PROVIDER,
+        },
+    )
+    cached_plan = cache.get(plan_cache_key)
+    if cached_plan is not None:
+        cached_plan["response_cached"] = True
+        return cached_plan
 
     people, equipment = _load_fixtures()
     experiment_type = _classify_experiment_type(question)
@@ -282,13 +325,16 @@ def generate_plan(
     ).strip()
 
     system = _build_system_prompt(depth, people, equipment)
+    generation_provider = "openai" if settings.OPENAI_KEY else settings.LLM_PROVIDER
+    generation_model = settings.OPENAI_MODEL_FLASH if settings.OPENAI_KEY else settings.GEMINI_MODEL_FLASH
 
     # 4. Generate with structured output
     raw = llm.generate_structured(
         prompt,
         response_schema=ExperimentPlan,
         system=system,
-        model=settings.GEMINI_MODEL_FLASH,
+        model=generation_model,
+        provider=generation_provider,
     )
 
     # 5. Validate (and salvage on minor failures)
@@ -300,14 +346,17 @@ def generate_plan(
             f"The previous output failed schema validation. Errors:\n{e}\n\nORIGINAL OUTPUT:\n{json.dumps(raw)[:6000]}\n\nFix the JSON to satisfy the schema. Keep all factual content; only fix structure.",
             response_schema=ExperimentPlan,
             system="Output strict JSON. No prose.",
-            model=settings.GEMINI_MODEL_FLASH,
+            model=generation_model,
+            provider=generation_provider,
         )
         plan = ExperimentPlan.model_validate(repair)
 
-    return {
+    out = {
         "plan": plan.model_dump(),
         "experiment_type": experiment_type,
         "domain": domain_hint,
         "grounding_used": len(grounding),
         "team_examples_applied": len(examples),
     }
+    cache.set(plan_cache_key, out)
+    return out

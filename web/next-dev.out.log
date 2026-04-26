@@ -1,0 +1,12 @@
+
+> hacknation-scientist-web@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.20
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 1457ms
+ ○ Compiling / ...
+ ✓ Compiled / in 6.5s (1517 modules)
+ GET / 200 in 7042ms

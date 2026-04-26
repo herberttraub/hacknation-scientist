@@ -1,18 +1,51 @@
 "use client";
 
-import type { Material } from "@/lib/api";
+import type { Material, Phase, ProtocolStep } from "@/lib/api";
 
-type Props = { materials: Material[] };
-
-const PRIO_COLOR: Record<Material["order_priority"], string> = {
-  early: "#9DAE94",
-  middle: "#D9CFBE",
-  late: "#A8794A",
+type Props = {
+  materials: Material[];
+  protocol?: ProtocolStep[];
+  timeline?: Phase[];
+  focusMaterial?: string | null;
 };
 
-export default function MaterialsTable({ materials }: Props) {
-  if (materials.length === 0)
+const FALLBACK_LEAD_DAYS: Record<Material["order_priority"], number> = {
+  early: 21,
+  middle: 10,
+  late: 3,
+};
+
+function supplierSearchHref(m: Material) {
+  const query = encodeURIComponent([m.supplier, m.catalog_no, m.name].filter(Boolean).join(" "));
+  return `https://www.google.com/search?q=${query}`;
+}
+
+function firstUse(material: Material, protocol: ProtocolStep[] = []) {
+  const name = material.name.toLowerCase();
+  const catalog = material.catalog_no.toLowerCase();
+  const foundIndex = protocol.findIndex((step) =>
+    step.materials_used.some((used) => {
+      const u = used.toLowerCase();
+      return u.includes(name) || name.includes(u) || (!!catalog && u.includes(catalog));
+    })
+  );
+  if (foundIndex < 0) return null;
+  return { stepNumber: foundIndex + 1, step: protocol[foundIndex] };
+}
+
+function phaseForStep(stepNumber: number, protocol: ProtocolStep[] = [], timeline: Phase[] = []) {
+  if (!protocol.length || !timeline.length) return null;
+  const phaseIndex = Math.min(
+    timeline.length - 1,
+    Math.floor(((stepNumber - 1) / protocol.length) * timeline.length)
+  );
+  return timeline[phaseIndex] ?? null;
+}
+
+export default function MaterialsTable({ materials, protocol = [], timeline = [], focusMaterial = null }: Props) {
+  if (materials.length === 0) {
     return <div className="text-sm font-serif italic text-graphite/60">No materials listed.</div>;
+  }
 
   return (
     <div className="border border-rule overflow-x-auto bg-ivory/40">
@@ -25,50 +58,73 @@ export default function MaterialsTable({ materials }: Props) {
             <th className="text-right px-3 py-2 eyebrow">Qty</th>
             <th className="text-right px-3 py-2 eyebrow">Unit $</th>
             <th className="text-right px-3 py-2 eyebrow">Total</th>
-            <th className="text-center px-3 py-2 eyebrow">Order</th>
-            <th className="text-left px-3 py-2 eyebrow">Storage / shelf</th>
+            <th className="text-left px-3 py-2 eyebrow">Order lead</th>
+            <th className="text-left px-3 py-2 eyebrow">First use</th>
+            <th className="text-left px-3 py-2 eyebrow">Storage / shelf life</th>
           </tr>
         </thead>
         <tbody>
-          {materials.map((m, i) => (
-            <tr key={i} className="border-t border-rule">
-              <td className="px-3 py-2 font-serif">{m.name}</td>
-              <td className="px-3 py-2 mono text-xs text-graphite/80">{m.catalog_no || "—"}</td>
-              <td className="px-3 py-2 text-xs">
-                {m.supplier_url ? (
-                  <a href={m.supplier_url} target="_blank" rel="noreferrer" className="underline decoration-brass">
-                    {m.supplier || "(link)"}
+          {materials.map((m, i) => {
+            const use = firstUse(m, protocol);
+            const phase = use ? phaseForStep(use.stepNumber, protocol, timeline) : null;
+            const leadDays = m.lead_time_days ?? FALLBACK_LEAD_DAYS[m.order_priority];
+            const focused = !!focusMaterial && m.name.toLowerCase().includes(focusMaterial.toLowerCase());
+            return (
+              <tr key={i} className={"border-t border-rule " + (focused ? "bg-sage/20" : "")}>
+                <td className="px-3 py-2 font-serif">{m.name}</td>
+                <td className="px-3 py-2 mono text-xs text-graphite/80">{m.catalog_no || "-"}</td>
+                <td className="px-3 py-2 text-xs">
+                  <div className="font-serif text-graphite">{m.supplier || "Supplier search"}</div>
+                  <a
+                    href={supplierSearchHref(m)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block mt-1 mono text-[10px] text-brass border border-rule px-1.5 py-0.5 hover:border-brass"
+                    title="Search supplier and catalog number"
+                  >
+                    find
                   </a>
-                ) : (
-                  m.supplier || "—"
-                )}
-              </td>
-              <td className="px-3 py-2 mono text-xs text-right">
-                {m.qty}
-                {m.unit_size ? ` × ${m.unit_size}` : ""}
-              </td>
-              <td className="px-3 py-2 mono text-xs text-right">
-                {m.unit_cost_usd ? `$${m.unit_cost_usd.toFixed(2)}` : "—"}
-              </td>
-              <td className="px-3 py-2 mono text-xs text-right text-graphite">
-                {m.total_cost_usd ? `$${m.total_cost_usd.toFixed(2)}` : "—"}
-              </td>
-              <td className="px-3 py-2 text-center">
-                <span
-                  className="inline-block px-2 py-0.5 mono text-[10px] uppercase"
-                  style={{ background: PRIO_COLOR[m.order_priority], color: "#2B2B2B" }}
-                >
-                  {m.order_priority}
-                </span>
-              </td>
-              <td className="px-3 py-2 text-xs text-graphite/80 italic font-serif">
-                {m.storage || "—"}
-                {m.shelf_life_days ? (
-                  <span className="ml-2 mono text-[11px] text-brass">{m.shelf_life_days}d</span>
-                ) : null}
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="px-3 py-2 mono text-xs text-right">
+                  {m.qty}
+                  {m.unit_size ? ` x ${m.unit_size}` : ""}
+                </td>
+                <td className="px-3 py-2 mono text-xs text-right">
+                  {m.unit_cost_usd ? `$${m.unit_cost_usd.toFixed(2)}` : "-"}
+                </td>
+                <td className="px-3 py-2 mono text-xs text-right text-graphite">
+                  {m.total_cost_usd ? `$${m.total_cost_usd.toFixed(2)}` : "-"}
+                </td>
+                <td className="px-3 py-2 text-xs">
+                  <div className="mono text-[11px] text-brass">{leadDays} days before use</div>
+                  <div className="font-serif italic text-graphite/60">
+                    {m.lead_time_days == null ? `fallback from ${m.order_priority} priority` : "supplier lead time"}
+                  </div>
+                </td>
+                <td className="px-3 py-2 text-xs min-w-[220px]">
+                  {use ? (
+                    <>
+                      <div className="mono text-[11px] text-brass">Step {use.stepNumber}</div>
+                      <div className="font-serif text-graphite">{use.step.name}</div>
+                      {phase && (
+                        <div className="font-serif italic text-graphite/60">
+                          timeline: {phase.name} (w{phase.week_start}-w{phase.week_end})
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <span className="font-serif italic text-graphite/60">not mapped to a protocol step</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs text-graphite/80 italic font-serif">
+                  {m.storage || "-"}
+                  {m.shelf_life_days ? (
+                    <span className="ml-2 mono text-[11px] text-brass">{m.shelf_life_days}d shelf life</span>
+                  ) : null}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

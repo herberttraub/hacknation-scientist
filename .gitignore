@@ -42,6 +42,7 @@ Thumbs.db
 exports/
 uploads/
 postgres-data/
+.cache/
 
 # Scratch outputs from manual testing
 plan_out.json

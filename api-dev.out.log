@@ -1,0 +1,12 @@
+INFO:     127.0.0.1:52372 - "GET /history?limit=3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52374 - "GET /plan/d01b260c-f7bb-4768-b1b3-0a53a573980d/export?format=pdf HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61553 - "GET /history?limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58001 - "GET /history?limit=3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58001 - "GET /history?limit=3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55887 - "OPTIONS /qc HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55887 - "POST /qc HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64560 - "OPTIONS /plan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64560 - "POST /plan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64560 - "GET /history?limit=3 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60868 - "GET /plan/70587f83-b14f-4b0a-99d1-dcf54279be18/export?format=pdf HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54687 - "GET /plan/70587f83-b14f-4b0a-99d1-dcf54279be18/export?format=docx HTTP/1.1" 200 OK

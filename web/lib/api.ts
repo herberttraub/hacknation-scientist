@@ -169,9 +169,16 @@ export interface PlanResponse {
   team_examples_applied: number;
 }
 
+export interface HistoryItem extends PlanResponse {
+  question: string;
+  depth: "brief" | "standard" | "deep";
+  created_at: string | null;
+}
+
 // ─── Endpoints ────────────────────────────────────────────────────────────
 export const api = {
   health: () => jget<{ status: string; provider: string; demo_mode: string }>("/health"),
+  history: (limit = 3) => jget<{ items: HistoryItem[]; error?: string }>(`/history?limit=${limit}`),
   qc: (question: string, team_id?: string) =>
     jpost<QCResult>("/qc", { question, team_id }),
   qcWithSource: (fd: FormData) => form<QCResult>("/qc/with-source", fd),

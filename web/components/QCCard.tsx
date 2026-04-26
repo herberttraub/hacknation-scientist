@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { api, type QCResult } from "@/lib/api";
-import NoveltyMeter from "./NoveltyMeter";
 
 type Props = {
   result: QCResult;
@@ -10,9 +9,26 @@ type Props = {
   onUpdate: (next: QCResult) => void;
 };
 
+const VERDICTS = [
+  { status: "not_found", label: "Not Found" },
+  { status: "similar_work_exists", label: "Similar Work Exists" },
+  { status: "exact_match_found", label: "Exact Match Found" },
+] as const;
+
+function refHref(sourceId: string, url: string) {
+  if (url) return url;
+  if (sourceId.startsWith("http")) return sourceId;
+  if (sourceId.startsWith("10.")) return `https://doi.org/${sourceId}`;
+  return `https://www.semanticscholar.org/search?q=${encodeURIComponent(sourceId)}`;
+}
+
 export default function QCCard({ result, question, onUpdate }: Props) {
   const [sourceUrl, setSourceUrl] = useState("");
   const [busy, setBusy] = useState(false);
+  const displayStatus =
+    result.status === "no_indexed_knowledge" || result.status === "ungrounded"
+      ? "not_found"
+      : result.status;
 
   async function provideSource() {
     if (!sourceUrl.trim()) return;
@@ -60,7 +76,25 @@ export default function QCCard({ result, question, onUpdate }: Props) {
       )}
 
       <div className="border border-rule p-6 bg-ivory/40">
-        <NoveltyMeter status={result.status} novelty={result.novelty_score} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {VERDICTS.map((v) => {
+            const active = displayStatus === v.status;
+            return (
+              <div
+                key={v.status}
+                className={
+                  "border px-4 py-5 text-center " +
+                  (active ? "border-brass bg-sage/30" : "border-rule bg-ivory/30")
+                }
+              >
+                <div className="eyebrow">Novelty Signal</div>
+                <div className="mt-2 font-serif text-2xl text-graphite">
+                  {v.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
         <p className="mt-6 font-serif text-base text-graphite leading-relaxed">
           {result.rationale}
@@ -105,16 +139,14 @@ export default function QCCard({ result, question, onUpdate }: Props) {
                   </div>
                   {r.source_id && (
                     <div className="mono text-xs text-brass">
-                      {r.source_id.startsWith("http") ? (
-                        <a href={r.source_id} target="_blank" rel="noreferrer" className="underline decoration-brass">
-                          {r.source_id}
-                        </a>
-                      ) : (
-                        r.source_id
-                      )}
-                      <span className="ml-3 text-graphite/50">
-                        sim {r.similarity.toFixed(2)}
-                      </span>
+                      <a
+                        href={refHref(r.source_id, r.url)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline decoration-brass"
+                      >
+                        {r.source_id}
+                      </a>
                     </div>
                   )}
                 </li>

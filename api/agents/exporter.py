@@ -74,15 +74,18 @@ def plan_to_markdown(plan: dict[str, Any]) -> str:
         p()
 
     p("## Materials")
-    p()
-    p("| Reagent | Catalog # | Supplier | Qty | Unit cost | Total | Order | Storage / shelf |")
-    p("|---|---|---|---|---|---|---|---|")
     for m in plan.get("materials") or []:
-        shelf = f"{m.get('shelf_life_days')}d" if m.get("shelf_life_days") else ""
-        p(f"| {m.get('name','')} | {m.get('catalog_no','')} | {m.get('supplier','')} | "
-          f"{m.get('qty','')} {m.get('unit_size','')} | "
-          f"${m.get('unit_cost_usd', 0):.2f} | ${m.get('total_cost_usd', 0):.2f} | "
-          f"{m.get('order_priority','')} | {m.get('storage','')} {shelf} |")
+        shelf = f"; shelf life {m.get('shelf_life_days')} days" if m.get("shelf_life_days") else ""
+        catalog = f", catalog {m.get('catalog_no')}" if m.get("catalog_no") else ""
+        supplier = f", supplier {m.get('supplier')}" if m.get("supplier") else ""
+        order = f", order {m.get('order_priority')}" if m.get("order_priority") else ""
+        storage = f", storage {m.get('storage')}{shelf}" if m.get("storage") or shelf else ""
+        p(
+            f"- **{m.get('name','')}**{catalog}{supplier}: "
+            f"{m.get('qty','')} {m.get('unit_size','')} at "
+            f"${m.get('unit_cost_usd', 0):.2f} each; total ${m.get('total_cost_usd', 0):.2f}"
+            f"{order}{storage}."
+        )
     p()
 
     p("## Equipment")
@@ -162,13 +165,14 @@ h2 { font-size: 16pt; margin: 22pt 0 6pt; color: #2B2B2B; border-bottom: 1px sol
 h3 { font-size: 13pt; margin: 14pt 0 4pt; font-style: italic; }
 blockquote { border-left: 2px solid #A8794A; padding-left: 8pt; color: #5a5446; font-style: italic; margin: 10pt 0; }
 code, pre { font-family: 'JetBrains Mono', monospace; font-size: 9pt; }
-table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 9pt; }
-th, td { padding: 4pt 6pt; border-bottom: 0.5pt solid #D9CFBE; text-align: left; }
+table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 8pt; table-layout: fixed; }
+th, td { padding: 3pt 4pt; border-bottom: 0.5pt solid #D9CFBE; text-align: left; word-wrap: break-word; overflow-wrap: break-word; }
 th { background: #F4EFE6; color: #A8794A; text-transform: uppercase; letter-spacing: 0.1em; font-size: 8pt; font-weight: 500; }
 ul, ol { padding-left: 18pt; }
 li { margin: 2pt 0; }
 strong { color: #2B2B2B; }
 em { color: #5a5446; }
+p, li, blockquote { page-break-inside: avoid; }
 """
 
 

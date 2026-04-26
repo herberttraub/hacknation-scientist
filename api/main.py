@@ -160,6 +160,54 @@ def plan(body: PlanRequest) -> dict:
     }
 
 
+@app.get("/history")
+def history(limit: int = 3) -> dict:
+    """Return the most recent persisted generated reports."""
+    bounded = max(1, min(limit, 10))
+    try:
+        with _conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                    p.id,
+                    p.query_id,
+                    q.question,
+                    p.depth_mode,
+                    p.plan,
+                    q.experiment_type,
+                    q.domain,
+                    p.created_at
+                from plans p
+                join queries q on q.id = p.query_id
+                order by p.created_at desc
+                limit %s
+                """,
+                (bounded,),
+            )
+            rows = cur.fetchall()
+    except Exception as e:
+        return {"items": [], "error": str(e)}
+
+    items = []
+    for row in rows:
+        plan_json = row[4]
+        items.append(
+            {
+                "plan_id": str(row[0]),
+                "query_id": str(row[1]),
+                "question": row[2],
+                "depth": row[3],
+                "plan": plan_json,
+                "experiment_type": row[5] or "unknown",
+                "domain": row[6],
+                "created_at": row[7].isoformat() if row[7] else None,
+                "grounding_used": len((plan_json or {}).get("references") or []),
+                "team_examples_applied": 0,
+            }
+        )
+    return {"items": items}
+
+
 # ─── Feedback (self-learning) ──────────────────────────────────────────────
 class FeedbackIn(BaseModel):
     plan_id: str

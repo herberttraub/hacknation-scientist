@@ -6,7 +6,7 @@ All app code calls `generate_text`, `generate_structured`, `embed`.
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 from .settings import settings
 
@@ -108,13 +108,21 @@ def _openai_generate_structured(
     schema = response_schema
     if isinstance(response_schema, type):
         schema = response_schema.model_json_schema()
-    resp = client.responses.create(
-        model=model or settings.OPENAI_MODEL_PRO,
-        instructions=system or "",
-        input=prompt,
-        response_format={"type": "json_schema", "json_schema": {"name": "out", "schema": schema}},
+    schema_prompt = (
+        f"{prompt}\n\nReturn JSON only. It must conform to this JSON schema:\n"
+        f"{json.dumps(schema)[:12000]}"
     )
-    return json.loads(resp.output_text)
+    resp = client.chat.completions.create(
+        model=model or settings.OPENAI_MODEL_PRO,
+        messages=[
+            {"role": "system", "content": system or "Return JSON only."},
+            {"role": "user", "content": schema_prompt},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.2,
+    )
+    text = resp.choices[0].message.content or "{}"
+    return json.loads(text)
 
 
 def _openai_embed(texts: list[str]) -> list[list[float]]:
@@ -124,8 +132,15 @@ def _openai_embed(texts: list[str]) -> list[list[float]]:
 
 
 # ─── Public API ────────────────────────────────────────────────────────────
-def generate_text(prompt: str, *, system: str | None = None, model: str | None = None) -> str:
-    if settings.LLM_PROVIDER == "gemini":
+def generate_text(
+    prompt: str,
+    *,
+    system: str | None = None,
+    model: str | None = None,
+    provider: Literal["gemini", "openai"] | None = None,
+) -> str:
+    active_provider = provider or settings.LLM_PROVIDER
+    if active_provider == "gemini":
         return _gemini_generate_text(prompt, system=system, model=model)
     return _openai_generate_text(prompt, system=system, model=model)
 
@@ -136,8 +151,10 @@ def generate_structured(
     *,
     system: str | None = None,
     model: str | None = None,
+    provider: Literal["gemini", "openai"] | None = None,
 ) -> dict[str, Any]:
-    if settings.LLM_PROVIDER == "gemini":
+    active_provider = provider or settings.LLM_PROVIDER
+    if active_provider == "gemini":
         return _gemini_generate_structured(prompt, response_schema, system=system, model=model)
     return _openai_generate_structured(prompt, response_schema, system=system, model=model)
 

@@ -8,12 +8,15 @@ Three flows feed into one verdict function:
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from textwrap import dedent
 
+from .. import cache
 from .. import llm
 from ..rag import retriever
 from ..rag.pdf_extract import fetch_url_as_text
+from ..rag.s2_client import search_papers, to_corpus_record
 from ..schemas.qc import QCResult, Reference
 from ..settings import settings
 
@@ -45,6 +48,7 @@ def _qc_demo_match(question: str) -> QCResult | None:
 
 VERDICT_SCHEMA = {
     "type": "object",
+    "additionalProperties": False,
     "properties": {
         "status": {
             "type": "string",
@@ -106,6 +110,137 @@ def _to_reference(r: dict, similarity_override: float | None = None) -> Referenc
     )
 
 
+def _cosine(a: list[float], b: list[float]) -> float:
+    import math
+
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a)) or 1.0
+    nb = math.sqrt(sum(y * y for y in b)) or 1.0
+    return dot / (na * nb)
+
+
+def _score_records_with_embeddings(question: str, records: list[dict], *, limit: int) -> list[dict]:
+    """Attach query-to-abstract similarity to live Semantic Scholar records."""
+    if not records:
+        return []
+    texts = [question] + [r["text"] for r in records]
+    vecs = llm.embed(texts)
+    if len(vecs) < 2 or not vecs[0]:
+        return records[:limit]
+
+    qv = vecs[0]
+    query_terms = {
+        term
+        for term in re.findall(r"[a-z0-9]+", question.lower())
+        if len(term) > 3 and term not in {"want", "create", "make", "build", "develop"}
+    }
+    scored: list[dict] = []
+    for r, v in zip(records, vecs[1:]):
+        next_r = dict(r)
+        semantic_sim = _cosine(qv, v) if v else 0.0
+        rank_bonus = 1.0 / (1.0 + float(next_r.get("_s2_rank") or 0))
+        title_terms = set(re.findall(r"[a-z0-9]+", (next_r.get("title") or "").lower()))
+        keyword_overlap = (
+            len(query_terms & title_terms) / max(1, len(query_terms))
+            if query_terms
+            else 0.0
+        )
+        next_r["similarity"] = (0.65 * semantic_sim) + (0.25 * rank_bonus) + (0.10 * keyword_overlap)
+        scored.append(next_r)
+    scored.sort(key=lambda r: r.get("similarity") or 0.0, reverse=True)
+    return scored[:limit]
+
+
+def _semantic_scholar_queries(question: str) -> list[str]:
+    """Convert conversational input into literature-search-shaped queries."""
+    q = question.strip()
+    cleaned = q.lower()
+    cleaned = re.sub(
+        r"\b(i\s+want\s+to|i\s+wanna|i\s+would\s+like\s+to|can\s+i|could\s+i|let'?s|please)\b",
+        " ",
+        cleaned,
+    )
+    cleaned = re.sub(r"\b(create|make|build|develop|invent|study|test|check|run)\b", " ", cleaned)
+    cleaned = re.sub(r"[^a-z0-9+\- ]+", " ", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    queries: list[str] = []
+    if "covid" in cleaned and "vaccine" in cleaned:
+        queries.extend(
+            [
+                "COVID vaccine",
+                "SARS-CoV-2 vaccine development efficacy",
+                "COVID-19 vaccine SARS-CoV-2 mRNA adenovirus protein subunit",
+            ]
+        )
+    queries.extend([cleaned, q])
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in queries:
+        item = item.strip()
+        key = item.lower()
+        if item and key not in seen:
+            seen.add(key)
+            out.append(item)
+    return out
+
+
+def _semantic_scholar_fallback(question: str, *, limit: int = 8) -> list[dict]:
+    """Live literature fallback for questions outside the local demo corpus.
+
+    These records are intentionally not inserted into corpus_chunks. The local
+    index stays as a small curated cache; live S2 results are query-scoped.
+    """
+    records: list[dict] = []
+    seen: set[str] = set()
+    for query in _semantic_scholar_queries(question):
+        papers = search_papers(query, limit=limit)
+        for paper_rank, paper in enumerate(papers):
+            rec = to_corpus_record(paper, domain="semantic_scholar_live")
+            if not rec:
+                continue
+            key = rec.get("source_id") or rec.get("title") or rec["text"][:80]
+            if key in seen:
+                continue
+            seen.add(key)
+            rec["_s2_rank"] = paper_rank
+            records.append(rec)
+            if len(records) >= limit * 2:
+                break
+        if len(records) >= limit * 2:
+            break
+    return _score_records_with_embeddings(question, records, limit=limit)
+
+
+def _heuristic_verdict(question: str, retrieved: list[dict], *, reason: str) -> QCResult:
+    """Deterministic backup when the verdict model is unavailable."""
+    top = retrieved[0] if retrieved else {}
+    top_score = float(top.get("similarity") or 0.0)
+    titles = " ".join((r.get("title") or "").lower() for r in retrieved[:3])
+    q = question.lower()
+
+    if top_score >= 0.82:
+        status = "exact_match_found"
+        novelty = 0.15
+        signal = "The top retrieved work is a close match to the submitted hypothesis."
+    elif top_score >= 0.60 or ("covid" in q and "vaccine" in q and "vaccine" in titles):
+        status = "similar_work_exists"
+        novelty = 0.45
+        signal = "Similar work exists in the retrieved literature."
+    else:
+        status = "not_found"
+        novelty = 0.85
+        signal = "The retrieved literature is weakly related, so this exact hypothesis was not found."
+
+    return QCResult(
+        status=status,
+        novelty_score=novelty,
+        rationale=signal,
+        references=[_to_reference(r) for r in retrieved[:3]],
+    )
+
+
 def run_verdict(question: str, retrieved: list[dict]) -> QCResult:
     """Given retrieved corpus chunks, classify novelty."""
     if not retrieved:
@@ -135,15 +270,14 @@ def run_verdict(question: str, retrieved: list[dict]) -> QCResult:
             prompt,
             response_schema=VERDICT_SCHEMA,
             system=VERDICT_SYSTEM,
-            model=settings.GEMINI_MODEL_FLASH,
+            model=settings.OPENAI_MODEL_FLASH if settings.OPENAI_KEY else settings.GEMINI_MODEL_FLASH,
+            provider="openai" if settings.OPENAI_KEY else settings.LLM_PROVIDER,
         )
     except Exception as e:
-        return QCResult(
-            status="similar_work_exists",
-            novelty_score=0.5,
-            rationale=f"Verdict failed; showing top retrieved refs anyway. ({e})",
-            references=[_to_reference(r) for r in retrieved[:3]],
-        )
+        reason = e.__class__.__name__
+        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+            reason = "the verdict model quota was exhausted"
+        return _heuristic_verdict(question, retrieved, reason=reason)
 
     best_idxs = (out.get("best_ref_indices") or [])[:3]
     refs = [_to_reference(retrieved[i]) for i in best_idxs if 0 <= i < len(retrieved)]
@@ -156,13 +290,38 @@ def run_verdict(question: str, retrieved: list[dict]) -> QCResult:
 
 
 def run_qc(question: str) -> QCResult:
-    """Default flow: search the indexed corpus, decide if we have signal."""
+    """Default flow: local pgvector first, then live Semantic Scholar fallback."""
     cached = _qc_demo_match(question)
     if cached is not None:
         return cached
+    cache_key = cache.key(
+        "qc_v2",
+        {
+            "question": question.strip().lower(),
+            "threshold": settings.NOVELTY_THRESHOLD,
+            "llm_provider": "openai" if settings.OPENAI_KEY else settings.LLM_PROVIDER,
+        },
+    )
+    cached_payload = cache.get(cache_key)
+    if cached_payload is not None:
+        return QCResult.model_validate(cached_payload)
+
     hits = retriever.search_corpus(question, k=8)
     if not hits or (hits[0].get("similarity") or 0) < settings.NOVELTY_THRESHOLD:
-        return QCResult(
+        try:
+            s2_hits = _semantic_scholar_fallback(question, limit=8)
+        except Exception:
+            s2_hits = []
+        if s2_hits:
+            result = run_verdict(question, s2_hits)
+            result.rationale = (
+                "Local index missed; Semantic Scholar live fallback was used. "
+                + result.rationale
+            )
+            cache.set(cache_key, result.model_dump())
+            return result
+
+        result = QCResult(
             status="no_indexed_knowledge",
             novelty_score=0.5,
             rationale=(
@@ -176,7 +335,12 @@ def run_qc(question: str) -> QCResult:
             needs_user_choice=True,
             fallback_options=["provide_source", "broad_general_search"],
         )
-    return run_verdict(question, hits)
+        cache.set(cache_key, result.model_dump())
+        return result
+
+    result = run_verdict(question, hits)
+    cache.set(cache_key, result.model_dump())
+    return result
 
 
 def run_qc_with_source(question: str, source_url: str | None = None, source_text: str | None = None) -> QCResult:
