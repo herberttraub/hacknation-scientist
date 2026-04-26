@@ -60,7 +60,7 @@
         {
           "qty": 1.0,
           "name": "Carbon ink",
-          "storage": "4\u00b0C, dark",
+          "storage": "4°C, dark",
           "supplier": "DuPont",
           "unit_size": "100 g",
           "catalog_no": "C2000802D3",
@@ -74,7 +74,7 @@
         {
           "qty": 1.0,
           "name": "Silver/Silver Chloride ink",
-          "storage": "4\u00b0C, dark",
+          "storage": "4°C, dark",
           "supplier": "DuPont",
           "unit_size": "50 g",
           "catalog_no": "C2000810P1",
@@ -88,9 +88,9 @@
         {
           "qty": 1.0,
           "name": "Anti-CRP capture antibody",
-          "storage": "-20\u00b0C",
+          "storage": "-20°C",
           "supplier": "R&D Systems (Bio-Techne)",
-          "unit_size": "100 \u00b5g",
+          "unit_size": "100 µg",
           "catalog_no": "MAB17071",
           "supplier_url": "https://www.rndsystems.com/products/human-crp-antibody_mab17071",
           "unit_cost_usd": 450.0,
@@ -102,7 +102,7 @@
         {
           "qty": 1.0,
           "name": "N-(3-Dimethylaminopropyl)-N'-ethylcarbodiimide hydrochloride (EDC)",
-          "storage": "2-8\u00b0C, desiccated",
+          "storage": "2-8°C, desiccated",
           "supplier": "Sigma-Aldrich",
           "unit_size": "1 g",
           "catalog_no": "E7750",
@@ -116,7 +116,7 @@
         {
           "qty": 1.0,
           "name": "N-Hydroxysuccinimide (NHS)",
-          "storage": "2-8\u00b0C, desiccated",
+          "storage": "2-8°C, desiccated",
           "supplier": "Sigma-Aldrich",
           "unit_size": "5 g",
           "catalog_no": "130672",
@@ -144,7 +144,7 @@
         {
           "qty": 1.0,
           "name": "Bovine Serum Albumin (BSA)",
-          "storage": "2-8\u00b0C",
+          "storage": "2-8°C",
           "supplier": "Sigma-Aldrich",
           "unit_size": "50 g",
           "catalog_no": "A7906",
@@ -158,7 +158,7 @@
         {
           "qty": 10.0,
           "name": "Whole blood samples (spiked with known CRP concentrations)",
-          "storage": "4\u00b0C",
+          "storage": "4°C",
           "supplier": "In-house preparation",
           "unit_size": "5 mL",
           "catalog_no": "",
@@ -172,7 +172,7 @@
         {
           "qty": 1.0,
           "name": "Human whole blood (control)",
-          "storage": "4\u00b0C",
+          "storage": "4°C",
           "supplier": "Innovative Research",
           "unit_size": "10 mL",
           "catalog_no": "HWB-K2EDTA",
@@ -186,9 +186,9 @@
         {
           "qty": 1.0,
           "name": "HRP-conjugated anti-CRP detection antibody",
-          "storage": "-20\u00b0C",
+          "storage": "-20°C",
           "supplier": "R&D Systems (Bio-Techne)",
-          "unit_size": "100 \u00b5g",
+          "unit_size": "100 µg",
           "catalog_no": "BAF1707",
           "supplier_url": "https://www.rndsystems.com/products/human-crp-duoset-elisa_dy1707",
           "unit_cost_usd": 500.0,
@@ -200,7 +200,7 @@
         {
           "qty": 1.0,
           "name": "TMB/H2O2 substrate solution",
-          "storage": "2-8\u00b0C, dark",
+          "storage": "2-8°C, dark",
           "supplier": "Sigma-Aldrich",
           "unit_size": "100 mL",
           "catalog_no": "T0440",
@@ -419,7 +419,7 @@
       {
         "role": "Principal Investigator",
         "fte_pct": 5,
-        "institution": "MIT \u2014 Dept. of Biological Engineering",
+        "institution": "MIT — Dept. of Biological Engineering",
         "named_person": "Dr. Kira Tang",
         "expertise_tags": [
           "antibody functionalization",
@@ -430,7 +430,7 @@
       {
         "role": "Lead Scientist",
         "fte_pct": 50,
-        "institution": "Harvard \u2014 Wyss Institute",
+        "institution": "Harvard — Wyss Institute",
         "named_person": "Dr. Rajiv Patel",
         "expertise_tags": [
           "paper-based microfluidics",
@@ -440,7 +440,7 @@
       {
         "role": "Electrochemical Specialist",
         "fte_pct": 30,
-        "institution": "MIT \u2014 Koch Institute",
+        "institution": "MIT — Koch Institute",
         "named_person": "Dr. Helena Brouwer",
         "expertise_tags": [
           "electrochemical sensing",
@@ -505,13 +505,13 @@
       {
         "name": "Wax printer",
         "model": "Xerox ColorQube 8570",
-        "location": "MIT Bldg 16, Rm 311 \u2014 Tang Lab",
+        "location": "MIT Bldg 16, Rm 311 — Tang Lab",
         "owner_team": "Tang Lab"
       },
       {
         "name": "Oven",
         "model": "Thermo Scientific Precision",
-        "location": "MIT Bldg 16, Rm 311 \u2014 Tang Lab",
+        "location": "MIT Bldg 16, Rm 311 — Tang Lab",
         "owner_team": "Tang Lab"
       },
       {
@@ -529,19 +529,19 @@
       {
         "name": "Micropipettes",
         "model": "Eppendorf Research plus",
-        "location": "MIT Bldg 16, Rm 311 \u2014 Tang Lab",
+        "location": "MIT Bldg 16, Rm 311 — Tang Lab",
         "owner_team": "Tang Lab"
       },
       {
         "name": "Potentiostat",
         "model": "Autolab PGSTAT204",
-        "location": "MIT Bldg 16, Rm 311 \u2014 Tang Lab",
+        "location": "MIT Bldg 16, Rm 311 — Tang Lab",
         "owner_team": "Tang Lab"
       },
       {
         "name": "Computer with data analysis software",
         "model": "Dell OptiPlex",
-        "location": "MIT Bldg 16, Rm 311 \u2014 Tang Lab",
+        "location": "MIT Bldg 16, Rm 311 — Tang Lab",
         "owner_team": "Tang Lab"
       }
     ],
@@ -577,7 +577,7 @@
       {
         "qty": 1.0,
         "name": "Carbon ink",
-        "storage": "4\u00b0C, dark",
+        "storage": "4°C, dark",
         "supplier": "DuPont",
         "unit_size": "100 g",
         "catalog_no": "C2000802D3",
@@ -591,7 +591,7 @@
       {
         "qty": 1.0,
         "name": "Silver/Silver Chloride ink",
-        "storage": "4\u00b0C, dark",
+        "storage": "4°C, dark",
         "supplier": "DuPont",
         "unit_size": "50 g",
         "catalog_no": "C2000810P1",
@@ -605,9 +605,9 @@
       {
         "qty": 1.0,
         "name": "Anti-CRP capture antibody",
-        "storage": "-20\u00b0C",
+        "storage": "-20°C",
         "supplier": "R&D Systems (Bio-Techne)",
-        "unit_size": "100 \u00b5g",
+        "unit_size": "100 µg",
         "catalog_no": "MAB17071",
         "supplier_url": "https://www.rndsystems.com/products/human-crp-antibody_mab17071",
         "unit_cost_usd": 450.0,
@@ -619,7 +619,7 @@
       {
         "qty": 1.0,
         "name": "N-(3-Dimethylaminopropyl)-N'-ethylcarbodiimide hydrochloride (EDC)",
-        "storage": "2-8\u00b0C, desiccated",
+        "storage": "2-8°C, desiccated",
         "supplier": "Sigma-Aldrich",
         "unit_size": "1 g",
         "catalog_no": "E7750",
@@ -633,7 +633,7 @@
       {
         "qty": 1.0,
         "name": "N-Hydroxysuccinimide (NHS)",
-        "storage": "2-8\u00b0C, desiccated",
+        "storage": "2-8°C, desiccated",
         "supplier": "Sigma-Aldrich",
         "unit_size": "5 g",
         "catalog_no": "130672",
@@ -661,7 +661,7 @@
       {
         "qty": 1.0,
         "name": "Bovine Serum Albumin (BSA)",
-        "storage": "2-8\u00b0C",
+        "storage": "2-8°C",
         "supplier": "Sigma-Aldrich",
         "unit_size": "50 g",
         "catalog_no": "A7906",
@@ -675,7 +675,7 @@
       {
         "qty": 10.0,
         "name": "Whole blood samples (spiked with known CRP concentrations)",
-        "storage": "4\u00b0C",
+        "storage": "4°C",
         "supplier": "In-house preparation",
         "unit_size": "5 mL",
         "catalog_no": "",
@@ -689,7 +689,7 @@
       {
         "qty": 1.0,
         "name": "Human whole blood (control)",
-        "storage": "4\u00b0C",
+        "storage": "4°C",
         "supplier": "Innovative Research",
         "unit_size": "10 mL",
         "catalog_no": "HWB-K2EDTA",
@@ -703,9 +703,9 @@
       {
         "qty": 1.0,
         "name": "HRP-conjugated anti-CRP detection antibody",
-        "storage": "-20\u00b0C",
+        "storage": "-20°C",
         "supplier": "R&D Systems (Bio-Techne)",
-        "unit_size": "100 \u00b5g",
+        "unit_size": "100 µg",
         "catalog_no": "BAF1707",
         "supplier_url": "https://www.rndsystems.com/products/human-crp-duoset-elisa_dy1707",
         "unit_cost_usd": 500.0,
@@ -717,7 +717,7 @@
       {
         "qty": 1.0,
         "name": "TMB/H2O2 substrate solution",
-        "storage": "2-8\u00b0C, dark",
+        "storage": "2-8°C, dark",
         "supplier": "Sigma-Aldrich",
         "unit_size": "100 mL",
         "catalog_no": "T0440",
@@ -736,15 +736,15 @@
         "url": "https://doi.org/10.1039/d5ay01911g",
         "year": 2026,
         "title": "A colorimetric paper-based immunosensor for high-sensitivity C-reactive protein (hs-CRP) detection.",
-        "authors": "Not specified in snippet",
+        "authors": "Duangtip Lawanstien, Pakakan Ngernpradab, M. Srisa-Art",
         "relevance": "Provides context on paper-based immunosensors for hs-CRP detection, relevant to the overall approach."
       },
       {
         "doi": "10.1002/celc.202500024",
         "url": "https://doi.org/10.1002/celc.202500024",
         "year": 2025,
-        "title": "Detection of C\u2010Reactive Protein by Electrochemiluminescence\u2010Based Droplet\u2010Free Digital Immunoassay with Tyramide Signal Amplification",
-        "authors": "Not specified in snippet",
+        "title": "Detection of C‐Reactive Protein by Electrochemiluminescence‐Based Droplet‐Free Digital Immunoassay with Tyramide Signal Amplification",
+        "authors": "Hiroya Abe, S. Nakamura, Kentaro Ito, K. Ino, Zhengyi Liu, Shinichi Sato",
         "relevance": "Highlights advanced electrochemical detection methods for CRP, informing the choice of electrochemical readout."
       },
       {
@@ -752,7 +752,7 @@
         "url": "https://doi.org/10.3390/bios12110977",
         "year": 2022,
         "title": "Eu-Chelate Polystyrene Microsphere-Based Lateral Flow Immunoassay Platform for hs-CRP Detection",
-        "authors": "Not specified in snippet",
+        "authors": "Birui Jin, Zhiguo Du, Chuyao Zhang, Zhao Yu, Xuemin Wang, Jie Hu",
         "relevance": "Discusses hs-CRP detection and the need for quantitative, rapid, and user-friendly methods, supporting the project's motivation."
       },
       {
@@ -760,7 +760,7 @@
         "url": "https://doi.org/10.1016/J.PROENG.2011.12.232",
         "year": 2011,
         "title": "Electrochemical ELISA Based on E. Coli with Autodisplayed Z-Domains",
-        "authors": "Not specified in snippet",
+        "authors": "J. Jeong, K. Kim, S. Park",
         "relevance": "Demonstrates the application of amperometric analysis to immunoassays, directly relevant to the electrochemical detection strategy."
       },
       {
@@ -768,7 +768,7 @@
         "url": "https://doi.org/10.1021/acsomega.9b04159",
         "year": 2020,
         "title": "Synthesis and Structural Optimization of Iridium(III) Solvent Complex for Electrochemiluminescence Labeling of Histidine-Rich Protein and Immunoassay Applications for CRP Detection",
-        "authors": "Not specified in snippet",
+        "authors": "Yuyang Zhou, Yangming Ding, Yinhao Huang, Leilei Cai, Jiawei Xu, Xiao Ma",
         "relevance": "Provides insights into electrochemical labeling and immunoassay applications for CRP, informing signal generation strategies."
       }
     ],

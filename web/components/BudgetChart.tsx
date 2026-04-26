@@ -13,8 +13,8 @@ const CATEGORY_COLOR: Record<string, string> = {
   consumables: "#A8794A",
   equipment: "#9DAE94",
   labor: "#2B2B2B",
-  contingency: "#D9CFBE",
-  other: "#7A6E5C",
+  contingency: "#B8615C",
+  other: "#5C7A6F",
 };
 
 function categoryForMaterial(m: Material) {
@@ -45,6 +45,8 @@ export default function BudgetChart({ budget, materials }: Props) {
   }, {});
   if (contingency > 0) categoryTotals.contingency = contingency;
 
+  const showBars = new Set(rows.map((r) => r.category)).size > 1;
+
   const cats = Object.entries(categoryTotals)
     .filter(([, value]) => value > 0)
     .map(([name, value]) => ({ name, value, fill: CATEGORY_COLOR[name] || CATEGORY_COLOR.other }));
@@ -71,20 +73,26 @@ export default function BudgetChart({ budget, materials }: Props) {
                   </td>
                   <td className="px-3 py-2 mono text-[11px] text-brass">{r.category}</td>
                   <td className="px-3 py-2 min-w-[260px]">
-                    <div className="flex items-center gap-3">
-                      <div className="h-3 flex-1 border border-rule bg-ivory">
-                        <div
-                          className="h-full"
-                          style={{
-                            width: `${Math.max(4, (r.total / maxTotal) * 100)}%`,
-                            background: CATEGORY_COLOR[r.category] || CATEGORY_COLOR.other,
-                          }}
-                        />
+                    {showBars ? (
+                      <div className="flex items-center gap-3">
+                        <div className="h-3 flex-1 border border-rule bg-ivory">
+                          <div
+                            className="h-full"
+                            style={{
+                              width: `${Math.max(4, (r.total / maxTotal) * 100)}%`,
+                              background: CATEGORY_COLOR[r.category] || CATEGORY_COLOR.other,
+                            }}
+                          />
+                        </div>
+                        <div className="mono text-xs text-graphite w-20 text-right">
+                          ${r.total.toLocaleString()}
+                        </div>
                       </div>
-                      <div className="mono text-xs text-graphite w-20 text-right">
+                    ) : (
+                      <div className="mono text-xs text-graphite text-right">
                         ${r.total.toLocaleString()}
                       </div>
-                    </div>
+                    )}
                   </td>
                 </tr>
               ))}

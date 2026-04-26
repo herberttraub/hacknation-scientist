@@ -7,13 +7,20 @@ type Props = {
   steps: ProtocolStep[];
   planId?: string;
   onMaterialClick?: (materialName: string) => void;
+  onEquipmentClick?: (equipmentName: string) => void;
   onMore?: (stepId: string) => void;
   onLess?: (stepId: string) => void;
 };
 
+function stripLocation(label: string): string {
+  // Drop anything after an em-dash, en-dash, hyphen, or pipe — these usually
+  // separate the equipment name from a location/owner suffix.
+  return label.split(/\s+[—–|]\s+/)[0].trim();
+}
+
 type SaveState = Record<string, "idle" | "saving" | "saved" | "rejected">;
 
-export default function ProtocolList({ steps, planId, onMaterialClick, onMore, onLess }: Props) {
+export default function ProtocolList({ steps, planId, onMaterialClick, onEquipmentClick, onMore, onLess }: Props) {
   const [drafts, setDrafts] = useState<ProtocolStep[]>(steps);
   const [editing, setEditing] = useState<Record<string, boolean>>({});
   const [saveState, setSaveState] = useState<SaveState>({});
@@ -164,11 +171,19 @@ export default function ProtocolList({ steps, planId, onMaterialClick, onMore, o
               <div className="mt-3">
                 <div className="eyebrow mb-1">Equipment needed</div>
                 <div className="flex flex-wrap gap-1.5">
-                  {s.equipment_used.map((e, i) => (
-                    <span key={`e${i}`} className="mono text-[10px] uppercase px-2 py-0.5 border border-brass text-brass">
-                      {e}
-                    </span>
-                  ))}
+                  {s.equipment_used.map((e, i) => {
+                    const display = stripLocation(e);
+                    return (
+                      <button
+                        key={`e${i}`}
+                        className="mono text-[10px] uppercase px-2 py-0.5 border border-brass text-brass hover:bg-brass/10"
+                        onClick={() => onEquipmentClick?.(display)}
+                        type="button"
+                      >
+                        {display}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

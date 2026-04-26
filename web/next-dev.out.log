@@ -10,3 +10,31 @@
  ○ Compiling / ...
  ✓ Compiled / in 6.5s (1517 modules)
  GET / 200 in 7042ms
+ ✓ Compiled in 437ms (1517 modules)
+ ✓ Compiled in 196ms (1517 modules)
+ ✓ Compiled in 227ms (1517 modules)
+ ✓ Compiled in 183ms (1517 modules)
+ ✓ Compiled in 227ms (1517 modules)
+ ✓ Compiled in 660ms (1517 modules)
+ ✓ Compiled in 1074ms (1517 modules)
+ ✓ Compiled in 671ms (1517 modules)
+ ✓ Compiled in 616ms (1517 modules)
+ ✓ Compiled in 531ms (1517 modules)
+ ✓ Compiled in 714ms (1517 modules)
+ ✓ Compiled in 427ms (1517 modules)
+ ✓ Compiled in 448ms (1517 modules)
+ ○ Compiling /_error ...
+ GET / 500 in 7ms
+ ✓ Compiled /_error in 250ms (1743 modules)
+ GET / 200 in 171ms
+ ✓ Compiled /_not-found in 400ms (1732 modules)
+ ✓ Compiled in 333ms (1746 modules)
+ ✓ Compiled in 254ms (1746 modules)
+ ✓ Compiled in 984ms (1746 modules)
+ GET / 200 in 316ms
+ GET / 200 in 34ms
+ ✓ Compiled in 610ms (1743 modules)
+ ✓ Compiled in 209ms (1743 modules)
+ GET / 200 in 109ms
+ GET / 200 in 53ms
+[?25h

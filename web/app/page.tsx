@@ -121,11 +121,6 @@ export default function Workspace() {
     }
   }
 
-  async function downloadExport(fmt: "pdf" | "docx" | "tex" | "md") {
-    if (!planResp) return;
-    window.open(api.exportPlan(planResp.plan_id, fmt), "_blank");
-  }
-
   function updateQuestion(next: string) {
     setQuestion(next);
     setQc(null);
@@ -388,20 +383,9 @@ export default function Workspace() {
               grounding_used: planResp.grounding_used,
               team_examples_applied: planResp.team_examples_applied,
             }}
+            onRegenerate={runPlan}
+            regenerating={planLoading}
           />
-
-          <section className="mt-12 mb-20">
-            <div className="eyebrow">Export</div>
-            <div className="specimen-label">
-              <h2 className="text-2xl font-serif">Take it with you</h2>
-            </div>
-            <div className="flex gap-3">
-              <button className="ghost" onClick={() => downloadExport("pdf")}>PDF</button>
-              <button className="ghost" onClick={() => downloadExport("docx")}>Word (.docx)</button>
-              <button className="ghost" onClick={() => downloadExport("tex")}>LaTeX (.tex)</button>
-              <button className="ghost" onClick={() => downloadExport("md")}>Markdown</button>
-            </div>
-          </section>
         </>
       )}
     </main>

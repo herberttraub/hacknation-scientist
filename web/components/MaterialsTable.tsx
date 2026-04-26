@@ -97,9 +97,11 @@ export default function MaterialsTable({ materials, protocol = [], timeline = []
                 </td>
                 <td className="px-3 py-2 text-xs">
                   <div className="mono text-[11px] text-brass">{leadDays} days before use</div>
-                  <div className="font-serif italic text-graphite/60">
-                    {m.lead_time_days == null ? `fallback from ${m.order_priority} priority` : "supplier lead time"}
-                  </div>
+                  {m.lead_time_days == null && (
+                    <div className="font-serif italic text-graphite/60">
+                      fallback from {m.order_priority} priority
+                    </div>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-xs min-w-[220px]">
                   {use ? (
