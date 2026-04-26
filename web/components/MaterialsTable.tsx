@@ -17,7 +17,7 @@ const FALLBACK_LEAD_DAYS: Record<Material["order_priority"], number> = {
 
 function supplierSearchHref(m: Material) {
   const query = encodeURIComponent([m.supplier, m.catalog_no, m.name].filter(Boolean).join(" "));
-  return `https://www.google.com/search?q=${query}`;
+  return `https://www.google.com/search?btnI=1&q=${query}`;
 }
 
 function firstUse(material: Material, protocol: ProtocolStep[] = []) {
@@ -80,9 +80,9 @@ export default function MaterialsTable({ materials, protocol = [], timeline = []
                     target="_blank"
                     rel="noreferrer"
                     className="inline-block mt-1 mono text-[10px] text-brass border border-rule px-1.5 py-0.5 hover:border-brass"
-                    title="Search supplier and catalog number"
+                    title="Open the most relevant supplier result"
                   >
-                    find
+                    lucky
                   </a>
                 </td>
                 <td className="px-3 py-2 mono text-xs text-right">

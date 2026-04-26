@@ -284,7 +284,7 @@ def export_plan(plan_id: str, format: str = "pdf") -> Response:
             headers={"Content-Disposition": f'attachment; filename="{safe_title}.md"'},
         )
     if fmt == "pdf":
-        pdf = exporter_agent.render_pdf(md)
+        pdf = exporter_agent.render_plan_pdf(row["plan"])
         return Response(
             content=pdf,
             media_type="application/pdf",

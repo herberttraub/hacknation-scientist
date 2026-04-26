@@ -31,7 +31,8 @@ const DEMO_QUESTIONS = [
 ];
 
 type Depth = "brief" | "standard" | "deep";
-type Screen = "intake" | "qc" | "configure" | "report";
+type Screen = "login" | "signup" | "intake" | "qc" | "configure" | "report";
+type Account = { email: string; password: string };
 
 const DEPTH_LABEL: Record<Depth, string> = {
   brief: "Shallow",
@@ -42,11 +43,12 @@ const DEPTH_LABEL: Record<Depth, string> = {
 export default function Workspace() {
   const [question, setQuestion] = useState("");
   const [depth, setDepth] = useState<Depth>("standard");
-  const [screen, setScreen] = useState<Screen>("intake");
+  const [screen, setScreen] = useState<Screen>("login");
+  const [userEmail, setUserEmail] = useState("");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
   const [qc, setQc] = useState<QCResult | null>(null);
   const [planResp, setPlanResp] = useState<PlanResponse | null>(null);
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -55,6 +57,60 @@ export default function Workspace() {
   const [error, setError] = useState<string | null>(null);
 
   const plan: ExperimentPlan | null = planResp?.plan ?? null;
+  const promptLength = question.trim().length;
+  const promptTooShort = promptLength > 0 && promptLength < 30;
+
+  function readAccounts(): Account[] {
+    if (typeof window === "undefined") return [];
+    try {
+      return JSON.parse(window.localStorage.getItem("husky_lab_accounts") || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  function writeAccounts(accounts: Account[]) {
+    window.localStorage.setItem("husky_lab_accounts", JSON.stringify(accounts));
+  }
+
+  function signUp() {
+    const email = authEmail.trim().toLowerCase();
+    if (!email || authPassword.length < 8) {
+      setError("Create an account with an email and a password of at least 8 characters.");
+      return;
+    }
+    const accounts = readAccounts();
+    if (accounts.some((a) => a.email === email)) {
+      setError("That email already has an account. Log in with the existing password.");
+      return;
+    }
+    writeAccounts([...accounts, { email, password: authPassword }]);
+    window.localStorage.setItem("husky_lab_session", email);
+    setUserEmail(email);
+    setError(null);
+    setScreen("intake");
+  }
+
+  function logIn() {
+    const email = authEmail.trim().toLowerCase();
+    const account = readAccounts().find((a) => a.email === email);
+    if (!account || account.password !== authPassword) {
+      setError("No matching account was found for that email and password.");
+      return;
+    }
+    window.localStorage.setItem("husky_lab_session", email);
+    setUserEmail(email);
+    setError(null);
+    setScreen("intake");
+  }
+
+  function logOut() {
+    window.localStorage.removeItem("husky_lab_session");
+    setUserEmail("");
+    setAuthPassword("");
+    setHistoryOpen(false);
+    setScreen("login");
+  }
 
   async function loadHistory() {
     setHistoryLoading(true);
@@ -69,27 +125,26 @@ export default function Workspace() {
   }
 
   useEffect(() => {
+    const session = window.localStorage.getItem("husky_lab_session") || "";
+    if (session) {
+      setUserEmail(session);
+      setScreen("intake");
+    }
     loadHistory();
   }, []);
 
   async function runQC() {
-    if (!question.trim()) return;
+    if (promptLength < 30) {
+      setError("Please enter at least 30 characters for the hypothesis.");
+      return;
+    }
     setError(null);
     setQc(null);
     setPlanResp(null);
     setScreen("intake");
     setQcLoading(true);
     try {
-      let r: QCResult;
-      if (sourceFile || sourceUrl.trim()) {
-        const fd = new FormData();
-        fd.append("question", question);
-        if (sourceUrl.trim()) fd.append("source_url", sourceUrl.trim());
-        if (sourceFile) fd.append("file", sourceFile);
-        r = await api.qcWithSource(fd);
-      } else {
-        r = await api.qc(question);
-      }
+      const r = await api.qc(question);
       setQc(r);
       setScreen("qc");
     } catch (e) {
@@ -100,7 +155,7 @@ export default function Workspace() {
   }
 
   async function runPlan() {
-    if (!question.trim()) return;
+    if (promptLength < 30) return;
     setError(null);
     setPlanLoading(true);
     try {
@@ -145,10 +200,11 @@ export default function Workspace() {
   }
 
   function canVisit(target: Screen) {
-    if (target === "intake") return true;
-    if (target === "qc") return !!qc;
-    if (target === "configure") return !!qc;
-    if (target === "report") return !!planResp;
+    if (target === "login" || target === "signup") return !userEmail;
+    if (target === "intake") return !!userEmail;
+    if (target === "qc") return !!userEmail && !!qc;
+    if (target === "configure") return !!userEmail && !!qc;
+    if (target === "report") return !!userEmail && !!planResp;
     return false;
   }
 
@@ -159,12 +215,15 @@ export default function Workspace() {
   return (
     <main className="min-h-screen px-8 md:px-12 py-10 max-w-[1500px] mx-auto">
       <header className="mb-10">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-baseline justify-between gap-4">
           <div>
             <div className="eyebrow">Challenge 04 - Fulcrum Science</div>
-            <h1 className="text-5xl mt-1 font-serif">Husky Lab - AI Scientist</h1>
+            <button type="button" onClick={() => userEmail && setScreen("intake")} className="text-left">
+              <h1 className="text-5xl mt-1 font-serif">Husky Lab - AI Scientist</h1>
+            </button>
           </div>
-          <div className="mono text-[11px] text-graphite/60">
+          <div className="mono text-[11px] text-graphite/60 flex items-center gap-2">
+            {userEmail && <span className="hidden md:inline text-graphite/60">{userEmail}</span>}
             <button
               className="ghost"
               onClick={() => {
@@ -172,12 +231,18 @@ export default function Workspace() {
                 if (!historyOpen) loadHistory();
               }}
               type="button"
+              disabled={!userEmail}
             >
               Recent history
             </button>
+            {userEmail && (
+              <button className="ghost" type="button" onClick={logOut}>
+                Log out
+              </button>
+            )}
           </div>
         </div>
-        {historyOpen && (
+        {historyOpen && userEmail && (
           <div className="mt-4 ml-auto max-w-xl border border-rule bg-ivory/95 p-4">
             <div className="eyebrow">Last three generated reports</div>
             {historyLoading && <p className="mt-2 font-serif italic text-sm text-graphite/70">Loading history...</p>}
@@ -209,28 +274,30 @@ export default function Workspace() {
         </p>
       </header>
 
-      <div className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-2">
-        {[
-          ["intake", "1 Intake"],
-          ["qc", "2 Literature QC"],
-          ["configure", "3 Report Depth"],
-          ["report", "4 Report"],
-        ].map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => goTo(id as Screen)}
-            disabled={!canVisit(id as Screen)}
-            className={
-              "border px-3 py-2 mono text-[11px] uppercase text-left " +
-              (screen === id ? "border-brass text-brass" : "border-rule text-graphite/50") +
-              (canVisit(id as Screen) ? " cursor-pointer hover:border-brass" : " opacity-50 cursor-not-allowed")
-            }
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {userEmail && (
+        <div className="mb-8 grid grid-cols-2 md:grid-cols-4 gap-2">
+          {[
+            ["intake", "1 Intake"],
+            ["qc", "2 Literature QC"],
+            ["configure", "3 Report Depth"],
+            ["report", "4 Report"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => goTo(id as Screen)}
+              disabled={!canVisit(id as Screen)}
+              className={
+                "border px-3 py-2 mono text-[11px] uppercase text-left " +
+                (screen === id ? "border-brass text-brass" : "border-rule text-graphite/50") +
+                (canVisit(id as Screen) ? " cursor-pointer hover:border-brass" : " opacity-50 cursor-not-allowed")
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 border border-brass px-4 py-3 bg-ivory/60">
@@ -239,7 +306,50 @@ export default function Workspace() {
         </div>
       )}
 
-      {screen === "intake" && (
+      {(screen === "login" || screen === "signup") && (
+        <section className="max-w-xl">
+          <div className="eyebrow">{screen === "login" ? "Account login" : "Create account"}</div>
+          <div className="specimen-label">
+            <h2 className="text-2xl font-serif">
+              {screen === "login" ? "Sign in to Husky Lab" : "Create a Husky Lab account"}
+            </h2>
+          </div>
+          <div className="space-y-3">
+            <input
+              type="text"
+              placeholder="Email"
+              value={authEmail}
+              onChange={(e) => setAuthEmail(e.target.value)}
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+            />
+          </div>
+          <div className="mt-4 flex items-center gap-3">
+            <button className="primary" type="button" onClick={screen === "login" ? logIn : signUp}>
+              {screen === "login" ? "Log in" : "Create account"}
+            </button>
+            <button
+              className="ghost"
+              type="button"
+              onClick={() => {
+                setError(null);
+                setScreen(screen === "login" ? "signup" : "login");
+              }}
+            >
+              {screen === "login" ? "Create account" : "Back to login"}
+            </button>
+          </div>
+          <p className="mt-3 font-serif italic text-sm text-graphite/70">
+            Prototype auth checks local accounts and requires the password used at signup.
+          </p>
+        </section>
+      )}
+
+      {screen === "intake" && userEmail && (
         <section>
           <div className="eyebrow">Stage 01 - Intake</div>
           <div className="specimen-label">
@@ -265,43 +375,21 @@ export default function Workspace() {
             value={question}
             onChange={(e) => updateQuestion(e.target.value)}
           />
-          <div className="mt-4 border border-rule bg-ivory/40 p-4">
-            <div className="eyebrow">Optional supporting document</div>
-            <p className="mt-1 font-serif text-sm italic text-graphite/70 max-w-3xl">
-              Add a paper, notes, dataset summary, or source link if the review should narrow around your own context.
-            </p>
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
-              <input
-                type="text"
-                placeholder="Paste a source URL or DOI"
-                value={sourceUrl}
-                onChange={(e) => setSourceUrl(e.target.value)}
-              />
-              <label className="ghost border border-rule px-3 py-2 text-sm cursor-pointer hover:border-brass hover:text-brass">
-                Upload file
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".pdf,.txt,.md,.csv,.json"
-                  onChange={(e) => setSourceFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            </div>
-            {sourceFile && (
-              <div className="mt-2 mono text-[11px] text-brass">
-                Attached: {sourceFile.name}
-                <button className="ml-3 underline" type="button" onClick={() => setSourceFile(null)}>
-                  remove
-                </button>
-              </div>
-            )}
+          <div className="mt-2 flex justify-between text-xs">
+            <span className={promptTooShort ? "text-brass" : "text-graphite/60"}>
+              Minimum 30 characters required.
+            </span>
+            <span className="mono text-graphite/60">{promptLength}/30</span>
           </div>
+          {promptTooShort && (
+            <p className="margin-note mt-2 text-xs">Add a little more detail before running literature QC.</p>
+          )}
 
           <div className="mt-4 flex justify-end">
             <button
               className="primary"
               onClick={runQC}
-              disabled={qcLoading || !question.trim()}
+              disabled={qcLoading || promptLength < 30}
             >
               {qcLoading ? "Running QC..." : "Run literature QC"}
             </button>
@@ -309,7 +397,7 @@ export default function Workspace() {
         </section>
       )}
 
-      {screen === "qc" && qc && (
+      {screen === "qc" && qc && userEmail && (
         <>
           <QCCard result={qc} question={question} onUpdate={setQc} />
           <div className="mt-8 flex justify-between">
@@ -323,7 +411,7 @@ export default function Workspace() {
         </>
       )}
 
-      {screen === "configure" && qc && (
+      {screen === "configure" && qc && userEmail && (
         <section>
           <div className="eyebrow">Stage 03 - Report Depth</div>
           <div className="specimen-label">
@@ -360,7 +448,7 @@ export default function Workspace() {
             <button
               className="primary"
               onClick={runPlan}
-              disabled={planLoading || !question.trim()}
+              disabled={planLoading || promptLength < 30}
             >
               {planLoading ? "Drafting report..." : "Generate report"}
             </button>
@@ -368,7 +456,7 @@ export default function Workspace() {
         </section>
       )}
 
-      {screen === "report" && plan && planResp && (
+      {screen === "report" && plan && planResp && userEmail && (
         <>
           <div className="mb-6 flex justify-between items-center">
             <button className="ghost" onClick={() => setScreen("configure")}>

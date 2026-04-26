@@ -14,7 +14,7 @@ from pydantic import ValidationError
 from .. import cache
 from .. import llm
 from ..rag import retriever
-from ..schemas.plan import ExperimentPlan
+from ..schemas.plan import ExperimentPlan, StaffAssignment
 from ..settings import settings
 
 
@@ -50,6 +50,51 @@ def _load_fixtures() -> tuple[list[dict], list[dict]]:
     people = json.loads((FIXTURES_DIR / "people.json").read_text(encoding="utf-8"))
     equipment = json.loads((FIXTURES_DIR / "equipment.json").read_text(encoding="utf-8"))
     return people, equipment
+
+
+def _person_score(question: str, role: str, expertise: list[str], person: dict) -> int:
+    haystack = f"{question} {role} {' '.join(expertise)}".lower()
+    return sum(1 for tag in person.get("expertise", []) if tag.lower() in haystack)
+
+
+def _fixture_staffing(plan: ExperimentPlan, people: list[dict], question: str) -> ExperimentPlan:
+    """Keep collaborators useful by snapping LLM staffing to named fixture people."""
+    existing_names = {p["name"] for p in people}
+    used: set[str] = set()
+    fixed = []
+    for assignment in plan.staffing:
+        if assignment.named_person in existing_names and assignment.named_person not in used:
+            used.add(assignment.named_person)
+            fixed.append(assignment)
+            continue
+        ranked = sorted(
+            people,
+            key=lambda p: (
+                p["name"] in used,
+                -_person_score(question, assignment.role, assignment.expertise_tags, p),
+            ),
+        )
+        selected = ranked[0]
+        used.add(selected["name"])
+        assignment.named_person = selected["name"]
+        assignment.institution = selected.get("institution", "")
+        if not assignment.expertise_tags:
+            assignment.expertise_tags = selected.get("expertise", [])[:3]
+        fixed.append(assignment)
+
+    if not fixed:
+        for person in people[:3]:
+            fixed.append(
+                StaffAssignment(
+                    role=person.get("title", "Scientific collaborator"),
+                    fte_pct=20,
+                    named_person=person["name"],
+                    institution=person.get("institution", ""),
+                    expertise_tags=person.get("expertise", [])[:3],
+                )
+            )
+    plan.staffing = fixed[:4]
+    return plan
 
 
 # ─── System prompt: ten interview-driven rules + depth persona ────────────
@@ -350,6 +395,7 @@ def generate_plan(
             provider=generation_provider,
         )
         plan = ExperimentPlan.model_validate(repair)
+    plan = _fixture_staffing(plan, people, question)
 
     out = {
         "plan": plan.model_dump(),

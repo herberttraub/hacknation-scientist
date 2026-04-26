@@ -15,18 +15,27 @@ function mapsEmbedHref(location: string) {
 }
 
 type LocationGroup = {
-  location: string;
+  building: string;
   owners: string[];
   items: Equipment[];
 };
 
+function buildingKey(location: string) {
+  const normalized = (location || "(location not specified)").trim();
+  const mit = normalized.match(/MIT\s+Bldg\s+[^,\s]+/i);
+  if (mit) return mit[0].replace(/\s+/g, " ");
+  const beforeRoom = normalized.split(/\b(?:Rm|Room|Suite|Floor)\b/i)[0].replace(/[,\s-]+$/g, "").trim();
+  if (beforeRoom) return beforeRoom;
+  return normalized.split(",")[0].trim() || normalized;
+}
+
 function groupByLocation(equipment: Equipment[]): LocationGroup[] {
   const map = new Map<string, LocationGroup>();
   for (const e of equipment) {
-    const key = e.location || "(location not specified)";
+    const key = buildingKey(e.location);
     let group = map.get(key);
     if (!group) {
-      group = { location: key, owners: [], items: [] };
+      group = { building: key, owners: [], items: [] };
       map.set(key, group);
     }
     group.items.push(e);
@@ -47,14 +56,14 @@ export default function EquipmentRail({ equipment }: Props) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {groups.map((g) => (
-        <div key={g.location} className="border border-rule p-4 bg-ivory/40">
+        <div key={g.building} className="border border-rule p-4 bg-ivory/40">
           <a
-            href={mapsLinkHref(g.location)}
+            href={mapsLinkHref(g.building)}
             target="_blank"
             rel="noreferrer"
             className="font-serif text-base text-graphite underline decoration-brass"
           >
-            {g.location}
+            {g.building}
           </a>
           {g.owners.length > 0 && (
             <div className="text-[11px] text-graphite/60 mt-1">
@@ -68,14 +77,17 @@ export default function EquipmentRail({ equipment }: Props) {
                 {e.model && (
                   <span className="mono text-[11px] text-graphite/60 ml-2">{e.model}</span>
                 )}
+                {e.location && (
+                  <div className="text-[11px] text-graphite/60">{e.location}</div>
+                )}
               </li>
             ))}
           </ul>
           <iframe
-            src={mapsEmbedHref(g.location)}
+            src={mapsEmbedHref(g.building)}
             loading="lazy"
             className="w-full h-32 border border-rule mt-3"
-            title={`Map for ${g.location}`}
+            title={`Map for ${g.building}`}
           />
         </div>
       ))}

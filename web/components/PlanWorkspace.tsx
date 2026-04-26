@@ -17,18 +17,17 @@ type Props = {
   regenerating?: boolean;
 };
 
-type Tab = "overview" | "protocol" | "materials" | "budget" | "timeline" | "validation" | "staffing" | "prior" | "equipment" | "references";
+type Tab = "overview" | "protocol" | "timeline" | "materials" | "equipment" | "budget" | "validation" | "prior" | "references";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "protocol", label: "Protocol" },
-  { id: "materials", label: "Materials" },
-  { id: "budget", label: "Budget" },
   { id: "timeline", label: "Timeline" },
-  { id: "validation", label: "Validation" },
-  { id: "staffing", label: "Staffing" },
-  { id: "prior", label: "Connect with" },
+  { id: "materials", label: "Materials" },
   { id: "equipment", label: "Equipment" },
+  { id: "budget", label: "Budget" },
+  { id: "validation", label: "Validation" },
+  { id: "prior", label: "Collaborators" },
   { id: "references", label: "References" },
 ];
 
@@ -201,7 +200,7 @@ export default function PlanWorkspace({ plan, planId, meta, onRegenerate, regene
         <span className="text-graphite/60 ml-3">grounded on {meta.grounding_used} chunks</span>
       </div>
 
-      <div className="grid grid-cols-[200px_1fr] gap-6 mt-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6 mt-8">
         <nav className="flex flex-col gap-1 border-r border-rule pr-3">
           {TABS.map((t) => (
             <button
@@ -434,27 +433,8 @@ export default function PlanWorkspace({ plan, planId, meta, onRegenerate, regene
             </Section>
           )}
 
-          {tab === "staffing" && (
-            <Section eyebrow="Staffing" title="People and skill coverage">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-5xl">
-                {[
-                  { role: "Lead researcher", count: 1, involvement: 35, skills: ["assay design", "experimental controls", "data review"] },
-                  { role: "Molecular biologist", count: 1, involvement: 45, skills: ["sample handling", "nucleic acid assay setup", "contamination control"] },
-                  { role: "Lab assistant", count: 1, involvement: 60, skills: ["buffer prep", "materials tracking", "bench execution"] },
-                  { role: "Data analyst", count: 1, involvement: 20, skills: ["calibration curves", "qRT-PCR comparison", "statistics"] },
-                ].map((s) => (
-                  <div key={s.role} className="border border-rule p-4 bg-ivory/40">
-                    <div className="font-serif text-lg">{s.count} x {s.role}</div>
-                    <div className="mono text-[11px] text-brass mt-1">{s.involvement}% involvement during active execution</div>
-                    <div className="mt-2 text-sm text-graphite/80">{s.skills.join(" - ")}</div>
-                  </div>
-                ))}
-              </div>
-            </Section>
-          )}
-
           {tab === "prior" && (
-            <Section eyebrow="Connect with" title="People who can help">
+            <Section eyebrow="Collaborators" title="People who can help">
               <PriorWorkRail staffing={plan.staffing} references={plan.references} />
             </Section>
           )}
